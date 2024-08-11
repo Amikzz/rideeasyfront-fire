@@ -4,19 +4,41 @@
     <application
         android:label="RideEasy"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:hardwareAccelerated="true">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
                  to determine the Window background behind the Flutter UI. -->
+
+<!--            <style name="LaunchTheme" parent="Theme.AppCompat.Light.NoActionBar">-->
+<!--                &lt;!&ndash; Set a solid background color that matches your Flutter app's splash screen or primary color &ndash;&gt;-->
+<!--                <item name="android:windowBackground">@color/launch_background</item>-->
+
+<!--                &lt;!&ndash; Customize the status bar color &ndash;&gt;-->
+<!--                <item name="android:statusBarColor">@color/primary_dark</item>-->
+
+<!--                &lt;!&ndash; Ensure the navigation bar color matches your app's theme &ndash;&gt;-->
+<!--                <item name="android:navigationBarColor">@color/primary</item>-->
+
+<!--                &lt;!&ndash; Set the status bar text color (light/dark) &ndash;&gt;-->
+<!--                <item name="android:windowLightStatusBar">false</item> &lt;!&ndash; Set to true for dark text on light background &ndash;&gt;-->
+
+<!--                &lt;!&ndash; Make the window full screen &ndash;&gt;-->
+<!--                <item name="android:windowFullscreen">true</item>-->
+
+<!--                &lt;!&ndash; Optional: Control the appearance of the action bar &ndash;&gt;-->
+<!--                <item name="android:windowNoTitle">true</item>-->
+<!--            </style>-->
+
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"

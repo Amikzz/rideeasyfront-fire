@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/SupportPage/faqpage.dart';
 
@@ -12,40 +14,68 @@ class SupportFormPage extends StatefulWidget {
 class _SupportFormPageState extends State<SupportFormPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _contactNumberController =
-  TextEditingController();
+  final TextEditingController _contactNumberController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Process the form submission logic here
+      // Prepare the data to be sent
+      final Map<String, dynamic> formData = {
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'phone': _contactNumberController.text,
+        'issue': _messageController.text,
+      };
 
-      // Show a dialog with the confirmation message
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Submission Successful'),
-            content: const Text(
-                'Form submitted successfully! Our customer officer will contact you.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                },
-                child: const Text('OK'),
-              ),
-            ],
+      try {
+        // Make the POST request
+        final response = await http.post(
+          Uri.parse('http://192.168.8.101:8000/api/support-post'),
+          headers: {
+            'Content-Type': 'application/json',
+            // Add more headers if needed, like authorization
+          },
+          body: jsonEncode(formData),
+        );
+
+        if (response.statusCode == 200) {
+          // Success handling
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Submission Successful'),
+                content: const Text('Form submitted successfully! Our customer officer will contact you.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close the dialog
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            },
           );
-        },
-      );
 
-      // Clear the form fields
-      _nameController.clear();
-      _contactNumberController.clear();
-      _messageController.clear();
-      _emailController.clear();
+          // Clear the form fields
+          _nameController.clear();
+          _contactNumberController.clear();
+          _messageController.clear();
+          _emailController.clear();
+        } else {
+          // Failure handling
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to submit form. Server responded with status code ${response.statusCode}.')),
+          );
+        }
+      } catch (e) {
+        // Error handling
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit form. Error: $e')),
+        );
+      }
     }
   }
 
@@ -146,7 +176,6 @@ class _SupportFormPageState extends State<SupportFormPage> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your contact number';
                   }
-                  // Add more sophisticated validation for phone numbers if needed
                   if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value)) {
                     return 'Please enter a valid contact number';
                   }

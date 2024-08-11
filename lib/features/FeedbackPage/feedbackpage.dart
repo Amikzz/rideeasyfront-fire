@@ -1,9 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ride_easy/common/constant.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/HomePage/home.dart';
 import 'package:ride_easy/models/reviewModel.dart';
 import 'package:ride_easy/widgets/custom_rating_bar.dart'; // Import the custom rating bar
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
@@ -26,22 +30,72 @@ class _FeedBackPageState extends State<FeedbackPage> {
     super.dispose();
   }
 
-  void _addReview() {
-    setState(() {
-      reviewList.add(Review(
-        imageUrl: 'https://example.com/user_image.png', // Placeholder URL
-        name: 'New User',
-        date: '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} ${DateTime.now().hour}:${DateTime.now().minute}',
-        comment: _commentController.text,
-        rating: _rating,
-        licenseNumber: _licenseNumberController.text,
-      ));
-      _commentController.clear();
-      _licenseNumberController.clear();
-      _rating = 0;
-    });
-    Navigator.of(context).pop(); // Close the dialog after adding the review
+  void _addReview() async {
+    try {
+      // Get the current user's ID
+      String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (userId != null) {
+        // Fetch the user's first name from Firestore
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+
+        String? firstName = userDoc.get('firstName');
+
+        if (firstName != null) {
+          // Create the review data
+          Map<String, dynamic> reviewData = {
+            'user_id': firstName, // Use the user's first name
+            'review': _commentController.text,
+            'rating': _rating,
+            'bus_license': _licenseNumberController.text,
+          };
+
+          // Send the review data to the Laravel backend
+          final response = await http.post(
+            Uri.parse('http://192.168.8.101:8000/api/review-post'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(reviewData),
+          );
+
+          if (response.statusCode == 200) {
+            setState(() {
+              reviewList.add(Review(
+                name: firstName, // Use the user's first name in the local list as well
+                imageUrl: 'https://example.com/user_image.png', // Placeholder URL
+                date: '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} ${DateTime.now().hour}:${DateTime.now().minute}',
+                comment: _commentController.text,
+                rating: _rating,
+                licenseNumber: _licenseNumberController.text,
+              ));
+              _commentController.clear();
+              _licenseNumberController.clear();
+              _rating = 0;
+            });
+
+            Navigator.of(context).pop(); // Close the dialog after adding the review
+          } else {
+            // Handle error with SnackBar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to submit review: ${response.body}')),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('First name not found in Firestore')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User ID is null')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding review: $e')),
+      );
+    }
   }
+
 
   void _showReviewDialog() {
     showDialog(

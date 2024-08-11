@@ -1,7 +1,4 @@
-// ignore_for_file: prefer_interpolation_to_compose_strings, library_private_types_in_public_api
-
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:ride_easy/common/customappbar.dart';
@@ -31,34 +28,43 @@ class _BusSchedulePageState extends State<BusSchedulePage> {
     });
   }
 
-  void fetchTowns() async {
-    Response response = await get(Uri.parse('http://10.0.2.2:3000/towns'));
-    List result = jsonDecode(response.body) as List;
-    setState(() {
-      towns.clear();
-      towns.add('ANY');
-      for (Map<String, dynamic> item in result) {
-        String? townName = item['name'];
-        if (townName != null) towns.add(townName);
+  // Get the details of the bus schedule from the API
+  void fetchBusSchedule() async {
+    try {
+      Response response = await get(Uri.parse('http://192.168.8.101:8000/api/view-bus-schedule'));
+
+      if (response.statusCode == 200) {
+        List result = jsonDecode(response.body) as List;
+        setState(() {
+          data.clear();
+          for (var item in result) {
+            if (item != null && item is Map<String, dynamic>) {
+              data.add({
+                'trip_id': item['trip_id'],
+                'bus_license_plate_no': item['bus_license_plate_no'],
+                'start_location': item['start_location'],
+                'end_location': item['end_location'],
+                'date': item['date'],
+                'departure_time': item['departure_time'],
+                'arrival_time': item['arrival_time'],
+              });
+            }
+          }
+        });
+      } else {
+        throw Exception('Failed to load bus schedule. Server responded with status code ${response.statusCode}.');
       }
-    });
+    } catch (e) {
+      print('Error fetching bus schedule: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch bus schedule. Please try again later.')),
+      );
+    }
   }
 
-  void search() async {
-    String url = 'http://10.0.2.2:3000/info/$src/$des/ANY';
-    Response response = await get(Uri.parse(url));
-    setState(() {
-      data.clear();
-      List items = jsonDecode(response.body) as List;
-      for (Map<String, dynamic> item in items) {
-        data.add(item);
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    fetchTowns();
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(200),
@@ -115,7 +121,7 @@ class _BusSchedulePageState extends State<BusSchedulePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('SOURCE'),
+                  const Text('START'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: DropdownButton(
@@ -132,7 +138,7 @@ class _BusSchedulePageState extends State<BusSchedulePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('DESTINATION'),
+                  const Text('END'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: DropdownButton(
@@ -150,7 +156,7 @@ class _BusSchedulePageState extends State<BusSchedulePage> {
           ),
           TextButton.icon(
             icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: search,
+            onPressed: () => fetchBusSchedule(),
             label: const Text(
               'Search',
               style: TextStyle(color: Colors.white),
@@ -199,22 +205,15 @@ class BusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'SOURCE',
+                      'START',
                       style: TextStyle(fontSize: 12, color: Colors.white),
                     ),
                     Text(
-                      data['src_name']!,
+                      data['start_location']!,
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      data['src_town']!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -231,22 +230,15 @@ class BusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     const Text(
-                      'DESTINATION',
+                      'END',
                       style: TextStyle(fontSize: 12, color: Colors.white),
                     ),
                     Text(
-                      data['des_name']!,
+                      data['end_location']!,
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      data['des_town']!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -259,29 +251,6 @@ class BusCard extends StatelessWidget {
             Row(
               children: [
                 const Icon(
-                  Icons.directions,
-                  color: Colors.white,
-                ),
-                const SizedBox(
-                  width: 5,
-                ),
-                Expanded(
-                  child: Text(
-                    '${data['distance']} KM, via ' + data['inter_towns']!,
-                    maxLines: 2,
-                    style: const TextStyle(
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 5,
-            ),
-            Row(
-              children: [
-                const Icon(
                   Icons.directions_bus,
                   color: Colors.white,
                 ),
@@ -289,11 +258,7 @@ class BusCard extends StatelessWidget {
                   width: 5,
                 ),
                 Text(
-                  data['brand']! +
-                      ', ' +
-                      data['chair_count'].toString() +
-                      ' seater, ' +
-                      ['Non-AC', 'AC'][data['ac']!],
+                  'Bus: ${data['bus_license_plate_no']}',
                   style: const TextStyle(color: Colors.white),
                 ),
               ],
@@ -311,7 +276,7 @@ class BusCard extends StatelessWidget {
                   width: 5,
                 ),
                 Text(
-                  data['start_time'].toString(),
+                  'Departure: ${data['departure_time']}',
                   style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(
@@ -325,7 +290,25 @@ class BusCard extends StatelessWidget {
                   width: 5,
                 ),
                 Text(
-                  data['duration'].toString(),
+                  'Arrival: ${data['arrival_time']}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 5,
+            ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white,
+                ),
+                const SizedBox(
+                  width: 5,
+                ),
+                Text(
+                  'Date: ${data['date']}',
                   style: const TextStyle(color: Colors.white),
                 ),
               ],
