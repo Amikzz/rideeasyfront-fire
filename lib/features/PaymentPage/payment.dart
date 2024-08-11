@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/HomePage/home.dart';
 import 'package:ride_easy/features/TicketBooking/ticketbooking.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 // Custom Ticket Widget
 class CustomTicketWidget extends StatelessWidget {
@@ -67,6 +70,94 @@ class _PaymentPageState extends State<PaymentPage> {
   int _childCount = 1;
   final ScrollController _scrollController = ScrollController();
 
+  //get the passenger id from current user
+  String? $userID = FirebaseAuth.instance.currentUser?.uid;
+
+  Future<void> _bookTicket() async {
+    // Prepare the payload for the API request
+    Map<String, dynamic> bookingDetails = {
+      'trip_id': widget.busDetails['tripId'],
+      'passenger_id': $userID,
+      'start_location': widget.busDetails['from'],
+      'end_location': widget.busDetails['to'],
+      'date': widget.busDetails['date'],
+      'departure_time': widget.busDetails['departureTime'],
+      'bus_license_plate_no': widget.busDetails['license'],
+      'no_of_adults': _adultCount,
+      'no_of_children': _childCount,
+      'total_fare': (_adultCount * 100.0) + (_childCount * 50.0),
+    };
+
+    Map<String, dynamic> ticketDetails = {};
+
+    try {
+      // Make the POST request to the backend API
+      final response = await http.post(
+        Uri.parse('http://192.168.8.101:8000/api/book-ticket'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(bookingDetails),
+      );
+
+      if (response.statusCode == 200) {
+        // If the server returns an OK response, the ticket booking was successful
+        setState(() {
+          _paymentSuccessful = true;
+          //get the ticket details passed
+          var responseData = jsonDecode(response.body);
+          ticketDetails = responseData['ticket'];
+        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PaymentSuccessPage(
+                busDetails: widget.busDetails,
+                totalFare: bookingDetails['total_fare'],
+                ticketDetailPay: ticketDetails,
+              )),
+        );
+      } else {
+        // If the server returns an error, show an alert
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Booking Failed'),
+              content: const Text('Something went wrong. Please try again.'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      // Handle network errors or exceptions
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: const Text('Failed to connect to the server.'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+
   void _processPayment() {
     showDialog(
       context: context,
@@ -90,12 +181,7 @@ class _PaymentPageState extends State<PaymentPage> {
                   _paymentSuccessful = true;
                 });
                 double totalFare = (_adultCount * 100.0) + (_childCount * 50.0);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => PaymentSuccessPage(
-                          busDetails: widget.busDetails, totalFare: totalFare)),
-                );
+                _bookTicket();
               },
             ),
           ],
@@ -510,12 +596,14 @@ class _PaymentPageState extends State<PaymentPage> {
 
 class PaymentSuccessPage extends StatelessWidget {
   final Map<String, dynamic> busDetails;
+  final Map<String, dynamic> ticketDetailPay;
   final double totalFare;
 
   const PaymentSuccessPage({
     super.key,
     required this.busDetails,
     required this.totalFare,
+    required this.ticketDetailPay
   });
 
   @override
@@ -604,6 +692,25 @@ class PaymentSuccessPage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Text(
+                                'ID: ${ticketDetailPay['id']}',
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Ticket ID: ${ticketDetailPay['ticket_id']}',
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Bus License Plate: ${busDetails['license']}',
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+
                               Text(
                                 'Trip ID: ${busDetails['tripId']}',
                                 style: const TextStyle(
