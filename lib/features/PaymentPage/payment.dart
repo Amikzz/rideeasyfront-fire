@@ -666,9 +666,11 @@ class PaymentSuccessPage extends StatelessWidget {
                   'Thank you!',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 16),
                 const Text(
-                  ' Your payment was successful.',
+                  ' Your payment was successful. \n Get a screenshot of the following details. \n You will need this to board the bus.',
                   style: TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -677,7 +679,7 @@ class PaymentSuccessPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 CustomTicketWidget(
-                  width: 250,
+                  width: 300,
                   height: 400,
                   isCornerRounded: true,
                   child: Stack(
@@ -694,12 +696,6 @@ class PaymentSuccessPage extends StatelessWidget {
                             children: [
                               Text(
                                 'ID: ${ticketDetailPay['id']}',
-                                style: const TextStyle(
-                                    fontSize: 18, color: Colors.white),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Ticket ID: ${ticketDetailPay['ticket_id']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
