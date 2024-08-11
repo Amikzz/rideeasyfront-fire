@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/HomePage/home.dart';
 import 'package:ride_easy/features/PaymentPage/payment.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class TicketBookingPage extends StatefulWidget {
   const TicketBookingPage({super.key});
@@ -11,11 +13,11 @@ class TicketBookingPage extends StatefulWidget {
 }
 
 class _TicketBookingPageState extends State<TicketBookingPage> {
-  String _selectedFromLocation = 'Colombo';
+  String _selectedFromLocation = 'Colombo Fort';
   String _selectedToLocation = 'Kottawa';
   DateTime _selectedDate = DateTime.now();
 
-  final List<String> _locations = ['Colombo', 'Kottawa'];
+  final List<String> _locations = ['Colombo Fort', 'Kottawa'];
   final List<Map<String, dynamic>> _busList = [];
 
   Future<void> _selectDate(BuildContext context) async {
@@ -32,38 +34,42 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
     }
   }
 
-  void _searchBuses() {
-    setState(() {
-      _busList.clear();
-      _busList.add({
-        'tripId': 'TRIP1234',
-        'from': _selectedFromLocation,
-        'to': _selectedToLocation,
-        'license': 'ABC-1234',
-        'departureTime': '10:00 AM',
-        'arrivalTime': '12:00 PM',
-        'date': "${_selectedDate.toLocal()}".split(' ')[0],
-      });
-      _busList.add({
-        'tripId': 'TRIP5678',
-        'from': _selectedFromLocation,
-        'to': _selectedToLocation,
-        'license': 'XYZ-5678',
-        'departureTime': '12:00 PM',
-        'arrivalTime': '2:00 PM',
-        'date': "${_selectedDate.toLocal()}".split(' ')[0],
-      });
-      _busList.add({
-        'tripId': 'TRIP9101',
-        'from': _selectedFromLocation,
-        'to': _selectedToLocation,
-        'license': 'LMN-9101',
-        'departureTime': '2:00 PM',
-        'arrivalTime': '4:00 PM',
-        'date': "${_selectedDate.toLocal()}".split(' ')[0],
-      });
-    });
+
+  void _searchBuses() async {
+    try {
+      // Send a GET request to the backend API
+      final response = await http.post(
+        Uri.parse('http://192.168.8.101:8000/api/search-bus?start_location=$_selectedFromLocation&end_location=$_selectedToLocation&date=$_selectedDate'),
+      );
+
+      if (response.statusCode == 200) {
+        // Parse the JSON response
+        List<dynamic> busData = jsonDecode(response.body);
+
+        setState(() {
+          _busList.clear();
+          // Add each bus to the bus list
+          for (var bus in busData) {
+            _busList.add({
+              'tripId': bus['trip_id'],
+              'from': bus['start_location'],
+              'to': bus['end_location'],
+              'license': bus['bus_license_plate_no'],
+              'departureTime': bus['departure_time'],
+              'arrivalTime': bus['arrival_time'],
+              'date': bus['date'],
+            });
+          }
+        });
+      } else {
+        // Handle error
+        print('Failed to load buses: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching buses: $e');
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
