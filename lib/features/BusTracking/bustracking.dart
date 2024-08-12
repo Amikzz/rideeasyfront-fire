@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async'; // Import for the Timer
 
 import '../HomePage/home.dart';
 
@@ -18,12 +19,19 @@ class _BusTrackingPageState extends State<BusTrackingPage> {
   final Location _locationService = Location();
   late GoogleMapController _mapController;
   final List<Marker> _busMarkers = [];
+  Timer? _timer; // Declare a Timer
 
   @override
   void initState() {
     super.initState();
     _initLocationService();
-    _fetchBusLocations();
+    _startLocationUpdates(); // Start updating bus locations
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancel the timer when the widget is disposed
+    super.dispose();
   }
 
   Future<void> _initLocationService() async {
@@ -43,6 +51,12 @@ class _BusTrackingPageState extends State<BusTrackingPage> {
     } else {
       _showSnackBar('Location permission denied');
     }
+  }
+
+  void _startLocationUpdates() {
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      _fetchBusLocations(); // Fetch bus locations every 10 seconds
+    });
   }
 
   Future<void> _fetchBusLocations() async {
@@ -70,9 +84,10 @@ class _BusTrackingPageState extends State<BusTrackingPage> {
               _busMarkers.add(
                 Marker(
                   markerId: MarkerId(bus['bus_license_plate_no'].toString()),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure), // Icon for a moving object
                   position: position,
                   infoWindow: InfoWindow(
-                    title: 'Bus ${bus['bus_license_plate_no']}',
+                    title: 'Bus: ${bus['bus_license_plate_no']}',
                     snippet: 'Last Updated: ${bus['lastUpdateLocation']} ',
                   ),
                 ),
