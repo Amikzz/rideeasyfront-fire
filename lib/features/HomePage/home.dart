@@ -10,6 +10,11 @@ import 'package:ride_easy/features/FeedbackPage/feedbackpage.dart';
 import 'package:ride_easy/features/SupportPage/faqpage.dart';
 import 'package:ride_easy/features/TicketBooking/ticketbooking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 
 import '../WelcomePage/welcome.dart';
 
@@ -242,29 +247,24 @@ class _HomePageState extends State<HomePage> {
                       color: Colors.orange,
                     ),
                     title: 'Don\'t Panic',
-                    desc: 'Are you sure you want to call emergency contact?',
+                    desc: 'Are you sure you want to call emergency services?',
                     btnCancel: ElevatedButton(
                       onPressed: () {
-                        // Call emergency contact
+                        //call the api to send the sos
+                        sendSOSRequest(context);
+                        // Close the dialog
+                        Navigator.of(context).pop();
                       },
                       style: ElevatedButton.styleFrom(
                         foregroundColor: Colors.white,
                         backgroundColor: Colors.red,
                         textStyle: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       child: const Text('SOS'),
                     ),
-                    btnOkOnPress: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomePage(),
-                        ),
-                      );
-                    },
                   ).show();
                 },
                 style: ElevatedButton.styleFrom(
@@ -287,6 +287,87 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  Future<void> sendSOSRequest(BuildContext context) async {
+    try {
+      // Get current user ID from Firebase Auth
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Fetch user details from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        final String firstName = userDoc['firstName'];
+        final String lastName = userDoc['lastName'];
+        final String idNumber = userDoc['idCardNo'];
+
+        // Get current location
+        // Check if location services are enabled
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          throw Exception('Location services are disabled.');
+        }
+
+        // Request location permissions
+        LocationPermission permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+          if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+            throw Exception('Location permissions are denied');
+          }
+        }
+
+        // Get current position
+        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+
+        // Extract latitude and longitude
+        final double latitude = position.latitude;
+        final double longitude = position.longitude;
+
+        // Prepare data to be sent
+        Map<String, dynamic> sosData = {
+          'id_number': idNumber,
+          'first_name': firstName,
+          'last_name': lastName,
+          'latitude': latitude,
+          'longitude': longitude,
+        };
+
+        // Send SOS request to backend
+        const String apiUrl = "http://192.168.8.101:8000/api/safety-button"; // Replace with your actual API endpoint
+        final response = await http.post(
+          Uri.parse(apiUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(sosData),
+        );
+
+        if (response.statusCode == 200) {
+          // Show success dialog or message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('SOS request sent successfully')),
+          );
+        } else {
+          // Handle errors
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send SOS: ${response.statusCode}')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User data not found')),
+        );
+      }
+    } catch (e) {
+      // Handle exceptions
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sending SOS: $e')),
+      );
+    }
+  }
+
 
   Widget _buildButton({
     required BuildContext context,
