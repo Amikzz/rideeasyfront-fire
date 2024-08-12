@@ -10,8 +10,6 @@ import 'package:ride_easy/features/FeedbackPage/feedbackpage.dart';
 import 'package:ride_easy/features/SupportPage/faqpage.dart';
 import 'package:ride_easy/features/TicketBooking/ticketbooking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
