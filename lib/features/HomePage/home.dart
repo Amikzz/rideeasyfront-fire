@@ -320,6 +320,9 @@ class _HomePageState extends State<HomePage> {
         // Get current position
         Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
 
+        //Get the current user ID
+        final String userId = FirebaseAuth.instance.currentUser!.uid;
+
         // Extract latitude and longitude
         final double latitude = position.latitude;
         final double longitude = position.longitude;
@@ -327,6 +330,7 @@ class _HomePageState extends State<HomePage> {
         // Prepare data to be sent
         Map<String, dynamic> sosData = {
           'id_number': idNumber,
+          'passenger_id': userId,
           'first_name': firstName,
           'last_name': lastName,
           'latitude': latitude,
@@ -334,7 +338,7 @@ class _HomePageState extends State<HomePage> {
         };
 
         // Send SOS request to backend
-        const String apiUrl = "http://192.168.8.101:8000/api/safety-button"; // Replace with your actual API endpoint
+        const String apiUrl = "http://10.3.1.160:8000/api/safety-button"; // Replace with your actual API endpoint
         final response = await http.post(
           Uri.parse(apiUrl),
           headers: {'Content-Type': 'application/json'},
