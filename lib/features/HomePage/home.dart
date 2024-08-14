@@ -353,7 +353,7 @@ class _HomePageState extends State<HomePage> {
         } else {
           // Handle errors
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send SOS: ${response.statusCode}')),
+            const SnackBar(content: Text('You don\'t have an active session to send SOS')),
           );
         }
       } else {
