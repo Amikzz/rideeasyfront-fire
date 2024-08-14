@@ -31,7 +31,7 @@ class _BusSchedulePageState extends State<BusSchedulePage> {
   // Get the details of the bus schedule from the API
   void fetchBusSchedule() async {
     try {
-      Response response = await get(Uri.parse('http://192.168.8.101:8000/api/view-bus-schedule'));
+      Response response = await get(Uri.parse('http://10.3.1.160:8000/api/view-bus-schedule'));
 
       if (response.statusCode == 200) {
         List result = jsonDecode(response.body) as List;
