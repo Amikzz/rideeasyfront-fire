@@ -60,15 +60,38 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
               'date': bus['date'],
             });
           }
+
+          // if the bus list is empty, show a snackbar
+          if (_busList.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No buses found for the selected date'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
         });
       } else {
         // Handle error
         print('Failed to load buses: ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load buses: ${response.body}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       print('Error fetching buses: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error fetching buses: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
+
 
 
   @override
