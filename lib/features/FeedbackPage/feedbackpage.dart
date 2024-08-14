@@ -52,7 +52,7 @@ class _FeedBackPageState extends State<FeedbackPage> {
 
           // Send the review data to the Laravel backend
           final response = await http.post(
-            Uri.parse('http://10.3.1.160:8000/api/review-post'),
+            Uri.parse('http://192.168.8.101:8000/api/review-post'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(reviewData),
           );

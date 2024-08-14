@@ -39,7 +39,7 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
     try {
       // Send a GET request to the backend API
       final response = await http.post(
-        Uri.parse('http://10.3.1.160:8000/api/search-bus?start_location=$_selectedFromLocation&end_location=$_selectedToLocation&date=$_selectedDate'),
+        Uri.parse('http://192.168.8.101:8000/api/search-bus?start_location=$_selectedFromLocation&end_location=$_selectedToLocation&date=$_selectedDate'),
       );
 
       if (response.statusCode == 200) {

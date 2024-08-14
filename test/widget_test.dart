@@ -7,24 +7,49 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ride_easy/features/BusTracking/bustracking.dart';
+import 'package:ride_easy/features/HomePage/home.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'package:ride_easy/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  // setUpAll(() async {
+  //   TestWidgetsFlutterBinding.ensureInitialized();
+  //   await Firebase.initializeApp(
+  //     options: DefaultFirebaseOptions.currentPlatform,
+  //   );
+  // });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('Test AppBar widgets and Logout functionality', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Hello, User'), findsOneWidget); // Check default user name
+    expect(find.byIcon(Icons.location_on), findsOneWidget); // Check location icon
+    expect(find.byType(CircleAvatar), findsOneWidget); // Check profile picture
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Test PopupMenuButton
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    expect(find.text('Logout'), findsOneWidget);
   });
+
+  testWidgets('Test GridView buttons and navigation', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+
+    // Test that buttons are present
+    expect(find.text('Bus Tracking'), findsOneWidget);
+    expect(find.text('Bus Schedule'), findsOneWidget);
+    expect(find.text('Ticket Booking'), findsOneWidget);
+    expect(find.text('Bus Seat Reserve'), findsOneWidget);
+    expect(find.text('Support'), findsOneWidget);
+    expect(find.text('FeedBack'), findsOneWidget);
+
+    // Test navigation
+    await tester.tap(find.text('Bus Tracking'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BusTrackingPage), findsOneWidget);
+  });
+
 }

@@ -93,7 +93,7 @@ class _PaymentPageState extends State<PaymentPage> {
     try {
       // Make the POST request to the backend API
       final response = await http.post(
-        Uri.parse('http://10.3.1.160:8000/api/book-ticket'),
+        Uri.parse('http://192.168.8.101:8000/api/book-ticket'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(bookingDetails),
       );
