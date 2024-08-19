@@ -60,7 +60,7 @@ class _BusTrackingPageState extends State<BusTrackingPage> {
   }
 
   Future<void> _fetchBusLocations() async {
-    const url = "http://192.168.8.101:8000/api/location-get?status=active"; // Replace with your API endpoint
+    const url = "http://192.168.8.104:8000/api/location-get?status=active"; // Replace with your API endpoint
     try {
       final response = await http.get(Uri.parse(url));
 
