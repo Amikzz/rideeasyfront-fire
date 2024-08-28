@@ -1,4 +1,3 @@
-import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,7 +13,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../WelcomePage/welcome.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -98,6 +96,155 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _showSafetyDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button to dismiss
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.red[50], // Light red background
+          title: Center(
+            child: Text(
+              'Select Safety Issue',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[900], // Dark red text
+              ),
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: Icon(Icons.drive_eta_rounded, color: Colors.red[700], size: 30),
+                  title: const Text(
+                    'Driver related',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _sendSOSRequest('Driver related');
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.person_outline, color: Colors.red[700], size: 30),
+                  title: const Text(
+                    'Conductor related',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _sendSOSRequest('Conductor related');
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.people_alt_outlined, color: Colors.red[700], size: 30),
+                  title: const Text(
+                    'Other passenger/s related',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _sendSOSRequest('Other passenger/s related');
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white
+              ),
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  Future<void> _sendSOSRequest(String issueType) async {
+    try {
+      // Get current user ID from Firebase Auth
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Fetch user details from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        final String firstName = userDoc['firstName'];
+        final String lastName = userDoc['lastName'];
+        final String idNumber = userDoc['idCardNo'];
+
+        // Get current location
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          throw Exception('Location services are disabled.');
+        }
+
+        LocationPermission permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+          if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+            throw Exception('Location permissions are denied');
+          }
+        }
+
+        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        final double latitude = position.latitude;
+        final double longitude = position.longitude;
+
+        // Prepare data to be sent
+        Map<String, dynamic> sosData = {
+          'id_number': idNumber,
+          'passenger_id': userId,
+          'first_name': firstName,
+          'last_name': lastName,
+          'latitude': latitude,
+          'longitude': longitude,
+          'issue_type': issueType, // Add issue type to the request data
+        };
+
+        // Send SOS request to backend
+        const String apiUrl = "http://10.3.0.173:8000/api/safety-button"; // Replace with your actual API endpoint
+        final response = await http.post(
+          Uri.parse(apiUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(sosData),
+        );
+
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('SOS request sent successfully')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to send SOS request')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User data not found')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sending SOS: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,7 +282,6 @@ class _HomePageState extends State<HomePage> {
                   if (value == 'logout') {
                     _logout();
                   } else if (value == 'profile') {
-                    // Navigate to profile page
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (context) => const ProfilePage()), // Replace with your login page
@@ -154,7 +300,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const PopupMenuItem<String>(
-                    value: 'profile',
+                      value: 'profile',
                       child: Row(
                         children: [
                           Icon(Icons.settings, color: Colors.black),
@@ -251,35 +397,7 @@ class _HomePageState extends State<HomePage> {
               height: 80,
               child: ElevatedButton(
                 onPressed: () {
-                  AwesomeDialog(
-                    context: context,
-                    dialogType: DialogType.warning,
-                    animType: AnimType.topSlide,
-                    customHeader: const Icon(
-                      Icons.warning,
-                      size: 50,
-                      color: Colors.orange,
-                    ),
-                    title: 'Don\'t Panic',
-                    desc: 'Are you sure you want to call emergency services?',
-                    btnCancel: ElevatedButton(
-                      onPressed: () {
-                        //call the api to send the sos
-                        sendSOSRequest(context);
-                        // Close the dialog
-                        Navigator.of(context).pop();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.red,
-                        textStyle: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: const Text('SOS'),
-                    ),
-                  ).show();
+                  _showSafetyDialog();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
@@ -301,91 +419,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  Future<void> sendSOSRequest(BuildContext context) async {
-    try {
-      // Get current user ID from Firebase Auth
-      final String userId = FirebaseAuth.instance.currentUser!.uid;
-
-      // Fetch user details from Firestore
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-
-      if (userDoc.exists) {
-        final String firstName = userDoc['firstName'];
-        final String lastName = userDoc['lastName'];
-        final String idNumber = userDoc['idCardNo'];
-
-        // Get current location
-        // Check if location services are enabled
-        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (!serviceEnabled) {
-          throw Exception('Location services are disabled.');
-        }
-
-        // Request location permissions
-        LocationPermission permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-          if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
-            throw Exception('Location permissions are denied');
-          }
-        }
-
-        // Get current position
-        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
-        //Get the current user ID
-        final String userId = FirebaseAuth.instance.currentUser!.uid;
-
-        // Extract latitude and longitude
-        final double latitude = position.latitude;
-        final double longitude = position.longitude;
-
-        // Prepare data to be sent
-        Map<String, dynamic> sosData = {
-          'id_number': idNumber,
-          'passenger_id': userId,
-          'first_name': firstName,
-          'last_name': lastName,
-          'latitude': latitude,
-          'longitude': longitude,
-        };
-
-        // Send SOS request to backend
-        const String apiUrl = "http://10.3.0.173:8000/api/safety-button"; // Replace with your actual API endpoint
-        final response = await http.post(
-          Uri.parse(apiUrl),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode(sosData),
-        );
-
-        if (response.statusCode == 200) {
-          // Show success dialog or message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('SOS request sent successfully')),
-          );
-        } else {
-          // Handle errors
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('You don\'t have an active session to send SOS')),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User data not found')),
-        );
-      }
-    } catch (e) {
-      // Handle exceptions
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending SOS: $e')),
-      );
-    }
-  }
-
 
   Widget _buildButton({
     required BuildContext context,
