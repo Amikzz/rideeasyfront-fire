@@ -1,6 +1,6 @@
-// ignore_for_file: depend_on_referenced_packages
-
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/Profile/profilepage.dart';
 
@@ -12,34 +12,118 @@ class EditPage extends StatefulWidget {
 }
 
 class _EditPageState extends State<EditPage> {
-  final TextEditingController firstNameController =
-      TextEditingController(text: 'Mahith');
-  final TextEditingController lastNameController =
-      TextEditingController(text: 'Sheshan');
-  final TextEditingController emailController =
-      TextEditingController(text: 'mahith1@icloud.com');
-  final TextEditingController genderController =
-      TextEditingController(text: 'MALE');
-  final TextEditingController phoneNumberController =
-      TextEditingController(text: '0771234567');
-  final TextEditingController lane1Controller =
-      TextEditingController(text: 'No 123, Example Lane');
-  final TextEditingController postalCodeController =
-      TextEditingController(text: '12345');
-  final TextEditingController cityController =
-      TextEditingController(text: 'Colombo');
-  final TextEditingController regionController =
-      TextEditingController(text: 'Western Province');
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController phoneNumberController = TextEditingController();
+  final TextEditingController lane1Controller = TextEditingController();
 
-  void _showEditBottomSheet(
-      BuildContext context, String title, Widget content) {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        var data = userDoc.data() as Map<String, dynamic>;
+        firstNameController.text = data['firstName'] ?? '';
+        lastNameController.text = data['lastName'] ?? '';
+        phoneNumberController.text = data['phoneNo'] ?? '';
+        lane1Controller.text = data['address'] ?? '';
+        setState(() {}); // Refresh UI with loaded data
+      }
+    }
+  }
+
+  String? _validatePhoneNumber(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Phone number is required';
+    }
+    final phoneNumber = value.trim();
+    if (phoneNumber.length != 10 || !RegExp(r'^[0-9]+$').hasMatch(phoneNumber)) {
+      return 'Phone number must be 10 digits';
+    }
+    return null;
+  }
+
+  Future<void> _updateUserData() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      final phoneNumberError = _validatePhoneNumber(phoneNumberController.text);
+      if (phoneNumberError != null) {
+        _showSnackBar(phoneNumberError);
+        return;
+      }
+
+      try {
+        await _firestore.collection('users').doc(user.uid).update({
+          'firstName': firstNameController.text,
+          'lastName': lastNameController.text,
+          'phoneNo': phoneNumberController.text,
+          'address': lane1Controller.text,
+          // Add profileImageUrl if you implement profile picture updates
+        });
+
+        // Show success message
+        _showSnackBar('Profile updated successfully');
+      } catch (e) {
+        // Show error message
+        _showSnackBar('Failed to update profile: $e');
+      }
+
+      // Reload user data to reflect changes
+      await _loadUserData();
+    }
+  }
+
+
+  Future<void> _deleteUser() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        // Delete Firestore document
+        await _firestore.collection('users').doc(user.uid).delete();
+
+        // Delete Firebase Authentication user
+        await user.delete();
+
+        // Show success message and redirect to a different page or logout
+        _showSnackBar('Account deleted successfully');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProfilePage(), // Or navigate to login page
+          ),
+        );
+      } catch (e) {
+        // Show error message
+        _showSnackBar('Failed to delete account: $e');
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showEditBottomSheet(BuildContext context, String title, Widget content) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
       ),
-      isScrollControlled:
-          true, // This line allows the bottom sheet to take full height if needed
+      isScrollControlled: true,
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
@@ -49,7 +133,6 @@ class _EditPageState extends State<EditPage> {
             bottom: MediaQuery.of(context).viewInsets.bottom + 20,
           ),
           child: SingleChildScrollView(
-            // This ensures the content inside is scrollable
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -66,7 +149,7 @@ class _EditPageState extends State<EditPage> {
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
-                    // Add save functionality
+                    _updateUserData();
                     Navigator.pop(context);
                   },
                   child: const Text('Save'),
@@ -77,6 +160,32 @@ class _EditPageState extends State<EditPage> {
         );
       },
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Account Deletion'),
+          content: const Text('Are you sure you want to delete your account? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await _deleteUser();
+    }
   }
 
   @override
@@ -101,7 +210,7 @@ class _EditPageState extends State<EditPage> {
                           MaterialPageRoute(
                             builder: (context) => const ProfilePage(),
                           ),
-                        ); // Navigate back
+                        );
                       },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
@@ -119,7 +228,7 @@ class _EditPageState extends State<EditPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                 ),
-                const SizedBox(width: 50), // Adjust spacing as needed
+                const SizedBox(width: 50),
               ],
             ),
           ),
@@ -131,49 +240,36 @@ class _EditPageState extends State<EditPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 16),
-
-              // Centered Profile Picture Row
-              Center(
-                child: Column(
-                  children: [
-                    const CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(
-                          'https://avatars.githubusercontent.com/u/210413'), // Replace with user's actual image
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // Add functionality to edit photo
-                      },
-                      child: const Text(
-                        'Change Photo',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ),
-                  ],
+              // Email Row (non-editable)
+              ListTile(
+                title: const Text('Email',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  _auth.currentUser?.email ?? '',
+                  style: const TextStyle(fontSize: 18),
                 ),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {},
               ),
               const Divider(),
 
-              // Email Row
+              // First Name Row
               ListTile(
-                title: const Text('Email',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                subtitle: const Text(
-                  'mahith1@icloud.com',
-                  style: TextStyle(fontSize: 18),
-                ), // Replace with user's email
+                title: const Text('First Name',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                subtitle: Text(firstNameController.text.isEmpty
+                    ? 'Enter your first name'
+                    : firstNameController.text,
+                    style: const TextStyle(fontSize: 18)),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   _showEditBottomSheet(
                     context,
-                    'Email',
+                    'First Name',
                     TextField(
-                      controller: emailController,
+                      controller: firstNameController,
                       decoration: const InputDecoration(
-                        labelText: 'Email',
+                        labelText: 'First Name',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -182,36 +278,25 @@ class _EditPageState extends State<EditPage> {
               ),
               const Divider(),
 
-              // Name Row
+              // Last Name Row
               ListTile(
-                title: const Text('Name',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                subtitle: const Text('Mahith Sheshan',
-                    style: TextStyle(fontSize: 18)), // Replace with user's name
+                title: const Text('Last Name',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                subtitle: Text(lastNameController.text.isEmpty
+                    ? 'Enter your last name'
+                    : lastNameController.text,
+                    style: const TextStyle(fontSize: 18)),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   _showEditBottomSheet(
                     context,
-                    'Name',
-                    Column(
-                      children: [
-                        TextField(
-                          controller: firstNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'First Name',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: lastNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Last Name',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ],
+                    'Last Name',
+                    TextField(
+                      controller: lastNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Last Name',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   );
                 },
@@ -221,11 +306,11 @@ class _EditPageState extends State<EditPage> {
               // Phone Number Row
               ListTile(
                 title: const Text('Phone Number',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                subtitle: const Text('0771234567',
-                    style: TextStyle(
-                        fontSize: 18)), // Replace with user's phone number
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                subtitle: Text(phoneNumberController.text.isEmpty
+                    ? 'Enter your phone number'
+                    : phoneNumberController.text,
+                    style: const TextStyle(fontSize: 18)),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   _showEditBottomSheet(
@@ -243,78 +328,25 @@ class _EditPageState extends State<EditPage> {
               ),
               const Divider(),
 
-              // Gender Row
-              ListTile(
-                title: const Text('Gender',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                subtitle: const Text('MALE',
-                    style:
-                        TextStyle(fontSize: 18)), // Replace with user's gender
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  _showEditBottomSheet(
-                    context,
-                    'Gender',
-                    TextField(
-                      controller: genderController,
-                      decoration: const InputDecoration(
-                        labelText: 'Gender',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const Divider(),
-
               // Address Row
               ListTile(
                 title: const Text('Address',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                subtitle: const Text('Colombo',
-                    style:
-                        TextStyle(fontSize: 18)), // Replace with user's address
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                subtitle: Text(lane1Controller.text.isEmpty
+                    ? 'Enter your address'
+                    : lane1Controller.text,
+                    style: const TextStyle(fontSize: 18)),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   _showEditBottomSheet(
                     context,
                     'Address',
-                    Column(
-                      children: [
-                        TextField(
-                          controller: lane1Controller,
-                          decoration: const InputDecoration(
-                            labelText: 'Lane 1',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: postalCodeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Postal Code',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: cityController,
-                          decoration: const InputDecoration(
-                            labelText: 'City',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: regionController,
-                          decoration: const InputDecoration(
-                            labelText: 'Region',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ],
+                    TextField(
+                      controller: lane1Controller,
+                      decoration: const InputDecoration(
+                        labelText: 'Address',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   );
                 },
@@ -328,7 +360,7 @@ class _EditPageState extends State<EditPage> {
                   padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
                 onPressed: () {
-                  // Add functionality to delete account
+                  _confirmDeleteAccount();
                 },
                 child: const Text(
                   'Delete Account',

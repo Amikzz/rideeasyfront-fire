@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/HomePage/home.dart';
 import 'package:ride_easy/features/LoginPage/login.dart';
@@ -12,6 +14,43 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  String firstName = '';
+  String lastName = '';
+  String idCardNo = '';
+  String phoneNo = '';
+  String email = '';
+  String location = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileData();
+  }
+
+  Future<void> _fetchProfileData() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        setState(() {
+          firstName = userDoc['firstName'];
+          lastName = userDoc['lastName'];
+          idCardNo = userDoc['idCardNo'];
+          phoneNo = userDoc['phoneNo'];
+          email = userDoc['email'];
+          location = userDoc['address'];
+        });
+      }
+    } catch (e) {
+      // Handle errors here
+      print('Error fetching profile data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,7 +73,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           MaterialPageRoute(
                             builder: (context) => const HomePage(),
                           ),
-                        ); // Navigate back
+                        );
                       },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
@@ -52,7 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                 ),
-                const SizedBox(width: 50), // Adjust spacing as needed
+                const SizedBox(width: 50),
               ],
             ),
           ),
@@ -66,23 +105,20 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               const CircleAvatar(
                 radius: 50,
-                backgroundImage: NetworkImage(
-                  'https://avatars.githubusercontent.com/u/210413',
-                  scale: 1,
-                ),
+                backgroundImage: AssetImage('assets/images/360_F_65772719_A1UV5kLi5nCEWI0BNLLiFaBPEkUbv5Fv.jpg'),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'John Doe',
-                style: TextStyle(
+              Text(
+                '$firstName $lastName',
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'eWallet ID: 1234567890',
-                style: TextStyle(
+              Text(
+                'ID Card: $idCardNo',
+                style: const TextStyle(
                   fontSize: 18,
                   color: Colors.grey,
                 ),
@@ -101,12 +137,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   );
                 },
-                child: const Text('Edit Profile',
-                    style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: const Text('Edit Profile', style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
               const SizedBox(height: 20),
-
-              // Horizontal line (Divider)
               const Divider(
                 color: Colors.grey,
                 thickness: 1,
@@ -114,23 +147,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 endIndent: 20,
               ),
               const SizedBox(height: 10),
-
-              // Row for Total Trips and Total Spends labels
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Total trips',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Total spends',
+                      'Coming Soon',
                       style: TextStyle(
                         color: Colors.black,
                         fontSize: 18,
@@ -140,33 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-
-              // Row for values
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 35),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '736',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                      ),
-                    ),
-                    Text(
-                      'Rs. 10,273',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 10),
-              // Horizontal line (Divider)
               const Divider(
                 color: Colors.grey,
                 thickness: 1,
@@ -174,81 +171,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 endIndent: 20,
               ),
               const SizedBox(height: 20),
-
-              // Additional content for phone, email, and location
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    // Phone Number
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Phone',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                          ),
-                        ),
-                        Text(
-                          '078 756 4524',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    // Email Address
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Email',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                          ),
-                        ),
-                        Text(
-                          'info@nemanli.com',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    // Location
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Location',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                          ),
-                        ),
-                        Text(
-                          'Colombo',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildProfileRow('Phone', phoneNo),
+                    const SizedBox(height: 10),
+                    _buildProfileRow('Email', email),
+                    const SizedBox(height: 10),
+                    _buildProfileRow('Location', location),
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Divider after location
               const Divider(
                 color: Colors.grey,
                 thickness: 1,
@@ -256,14 +191,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 endIndent: 20,
               ),
               const SizedBox(height: 20),
-
-              // Logout button
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Implement logout functionality here
+                    FirebaseAuth.instance.signOut(); // Log the user out
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -273,8 +205,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    minimumSize:
-                        const Size(double.infinity, 50), // Full-width button
+                    minimumSize: const Size(double.infinity, 50), // Full-width button
                   ),
                   child: const Text(
                     'Logout',
@@ -286,6 +217,33 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProfileRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
