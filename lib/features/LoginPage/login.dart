@@ -79,7 +79,7 @@ class _LoginPageState extends State<LoginPage> {
                             context,
                             MaterialPageRoute(
                                 builder: (context) =>
-                                const Placeholder())); // Navigate back
+                                const WelcomePage())); // Navigate back
                       },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),

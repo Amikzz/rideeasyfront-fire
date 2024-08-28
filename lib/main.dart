@@ -45,7 +45,7 @@ class AuthenticationWrapper extends StatelessWidget {
           return const HomePage();
         } else {
           // User is not signed in
-          return const Placeholder();
+          return const WelcomePage();
         }
       },
     );
