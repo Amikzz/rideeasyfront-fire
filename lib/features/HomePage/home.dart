@@ -3,10 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:ride_easy/features/BusSeatReserve/comingsoon.dart';
 import 'package:ride_easy/features/BusShedule/busshedule.dart';
+import 'package:ride_easy/features/BusSheetBooking/destinationpage.dart';
 import 'package:ride_easy/features/BusTracking/bustracking.dart';
 import 'package:ride_easy/features/FeedbackPage/feedbackpage.dart';
+import 'package:ride_easy/features/Profile/profilepage.dart';
 import 'package:ride_easy/features/SupportPage/faqpage.dart';
 import 'package:ride_easy/features/TicketBooking/ticketbooking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -89,7 +90,7 @@ class _HomePageState extends State<HomePage> {
       await FirebaseAuth.instance.signOut();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const WelcomePage()), // Replace with your login page
+        MaterialPageRoute(builder: (context) => const Placeholder()), // Replace with your login page
       );
     } catch (e) {
       print('Error signing out: ${e.toString()}');
@@ -133,6 +134,12 @@ class _HomePageState extends State<HomePage> {
                 onSelected: (value) {
                   if (value == 'logout') {
                     _logout();
+                  } else if (value == 'profile') {
+                    // Navigate to profile page
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfilePage()), // Replace with your login page
+                    );
                   }
                 },
                 itemBuilder: (BuildContext context) => [
@@ -146,6 +153,16 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ),
+                  const PopupMenuItem<String>(
+                    value: 'profile',
+                      child: Row(
+                        children: [
+                          Icon(Icons.settings, color: Colors.black),
+                          SizedBox(width: 8),
+                          Text('Profile'),
+                        ],
+                      )
+                  )
                 ],
               ),
             ],
@@ -211,7 +228,7 @@ class _HomePageState extends State<HomePage> {
                     context: context,
                     title: 'Bus Seat Reserve',
                     image: const AssetImage('assets/images/seat.png'),
-                    targetPage: const ComingSoonPage(),
+                    targetPage: const DestinationPage(),
                   ),
                   _buildButton(
                     context: context,
@@ -338,7 +355,7 @@ class _HomePageState extends State<HomePage> {
         };
 
         // Send SOS request to backend
-        const String apiUrl = "http://192.168.8.104:8000/api/safety-button"; // Replace with your actual API endpoint
+        const String apiUrl = "http://10.3.0.173:8000/api/safety-button"; // Replace with your actual API endpoint
         final response = await http.post(
           Uri.parse(apiUrl),
           headers: {'Content-Type': 'application/json'},
