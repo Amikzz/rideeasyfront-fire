@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/Profile/profilepage.dart';
+import 'package:ride_easy/features/WelcomePage/welcome.dart';
 
 class EditPage extends StatefulWidget {
   const EditPage({super.key});
@@ -98,7 +99,7 @@ class _EditPageState extends State<EditPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const ProfilePage(), // Or navigate to login page
+            builder: (context) => const WelcomePage(), // Or navigate to login page
           ),
         );
       } catch (e) {

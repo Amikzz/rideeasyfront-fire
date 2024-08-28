@@ -234,6 +234,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         Expanded(
+          flex: 3,
           child: Text(
             value,
             textAlign: TextAlign.end,
