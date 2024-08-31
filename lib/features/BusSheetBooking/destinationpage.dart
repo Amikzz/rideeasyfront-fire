@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/BusSheetBooking/busseatpage.dart';
 import 'package:ride_easy/features/HomePage/home.dart';
@@ -11,11 +14,11 @@ class DestinationPage extends StatefulWidget {
 }
 
 class _DestinationPageState extends State<DestinationPage> {
-  String _selectedFromLocation = 'Location 1';
-  String _selectedToLocation = 'Location 2';
+  String _selectedFromLocation = 'Colombo Fort';
+  String _selectedToLocation = 'Kottawa';
   DateTime _selectedDate = DateTime.now();
 
-  final List<String> _locations = ['Location 1', 'Location 2', 'Location 3'];
+  final List<String> _locations = ['Colombo Fort', 'Kottawa'];
   final List<Map<String, dynamic>> _busList = [];
 
   Future<void> _selectDate(BuildContext context) async {
@@ -32,37 +35,53 @@ class _DestinationPageState extends State<DestinationPage> {
     }
   }
 
-  void _searchBuses() {
-    setState(() {
-      _busList.clear();
-      _busList.add({
-        'tripId': 'TRIP1234',
-        'from': _selectedFromLocation,
-        'to': _selectedToLocation,
-        'license': 'ABC-1234',
-        'departureTime': '10:00 AM',
-        'arrivalTime': '12:00 PM',
-        'date': "${_selectedDate.toLocal()}".split(' ')[0],
-      });
-      _busList.add({
-        'tripId': 'TRIP5678',
-        'from': _selectedFromLocation,
-        'to': _selectedToLocation,
-        'license': 'XYZ-5678',
-        'departureTime': '12:00 PM',
-        'arrivalTime': '2:00 PM',
-        'date': "${_selectedDate.toLocal()}".split(' ')[0],
-      });
-      _busList.add({
-        'tripId': 'TRIP9101',
-        'from': _selectedFromLocation,
-        'to': _selectedToLocation,
-        'license': 'LMN-9101',
-        'departureTime': '2:00 PM',
-        'arrivalTime': '4:00 PM',
-        'date': "${_selectedDate.toLocal()}".split(' ')[0],
-      });
-    });
+  void _searchBuses() async {
+    final url = Uri.parse('http://192.168.8.103:8000/api/search-bus');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'date': "${_selectedDate.toLocal()}".split(' ')[0],
+          'start_location': _selectedFromLocation,
+          'end_location': _selectedToLocation,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+        setState(() {
+          _busList.clear();
+          for (var bus in responseData) {
+            _busList.add({
+              'tripId': bus['trip_id'],
+              'from': bus['start_location'],
+              'to': bus['end_location'],
+              'license': bus['bus_license_plate_no'],
+              'departureTime': bus['departure_time'],
+              'arrivalTime': bus['arrival_time'],
+              'date': bus['date'],
+            });
+          }
+        });
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _busList.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No buses found for the selected date and route.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to search buses. Please try again later.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred: $e')),
+      );
+    }
   }
 
   @override
@@ -153,20 +172,24 @@ class _DestinationPageState extends State<DestinationPage> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            DropdownButton<String>(
-                              value: _selectedFromLocation,
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _selectedFromLocation = newValue!;
-                                });
-                              },
-                              items: _locations.map<DropdownMenuItem<String>>(
-                                  (String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }).toList(),
+                            IntrinsicWidth(
+                              stepHeight:60,
+                              child: DropdownButton<String>(
+                                isExpanded: true,
+                                value: _selectedFromLocation,
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _selectedFromLocation = newValue!;
+                                  });
+                                },
+                                items: _locations.map<DropdownMenuItem<String>>(
+                                        (String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                              ),
                             ),
                           ],
                         ),
@@ -202,20 +225,24 @@ class _DestinationPageState extends State<DestinationPage> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            DropdownButton<String>(
-                              value: _selectedToLocation,
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _selectedToLocation = newValue!;
-                                });
-                              },
-                              items: _locations.map<DropdownMenuItem<String>>(
-                                  (String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }).toList(),
+                            IntrinsicWidth(
+                              stepHeight: 60,
+                              child: DropdownButton<String>(
+                                isExpanded: true,
+                                value: _selectedToLocation,
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _selectedToLocation = newValue!;
+                                  });
+                                },
+                                items: _locations.map<DropdownMenuItem<String>>(
+                                        (String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                              ),
                             ),
                           ],
                         ),
@@ -283,8 +310,9 @@ class _DestinationPageState extends State<DestinationPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            BusSeatBookingPage(busDetails: bus),
+                        builder: (context) => BusSeatBookingPage(
+                          busDetails: bus,
+                        ),
                       ),
                     );
                   },
@@ -293,12 +321,12 @@ class _DestinationPageState extends State<DestinationPage> {
                     child: ListTile(
                       title: Text('${bus['from']} to ${bus['to']}'),
                       subtitle: Text(
-                        'Trip ID: ${bus['tripId']}\nLicense Plate: ${bus['license']}\nDeparture Time: ${bus['departureTime']}\nArrival Time: ${bus['arrivalTime']}\nDate: ${bus['date']}',
+                        'Trip ID: ${bus['tripId']}\nLicense Plate: ${bus['license']}\nDeparture: ${bus['departureTime']} | Arrival: ${bus['arrivalTime']}',
                       ),
                     ),
                   ),
                 );
-              }),
+              }).toList(),
           ],
         ),
       ),
