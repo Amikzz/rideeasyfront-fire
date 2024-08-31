@@ -1,5 +1,8 @@
 // ignore_for_file: library_private_types_in_public_api, prefer_const_constructors
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 import 'package:flutter/material.dart';
 import 'package:ride_easy/common/customappbar.dart';
 import 'package:ride_easy/features/HomePage/home.dart';
@@ -29,9 +32,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
   @override
   void initState() {
     super.initState();
-    reservedSeats[5] = true;
-    reservedSeats[10] = true;
-    reservedSeats[15] = true;
+    _fetchReservedSeats();
   }
 
   int get totalPassengers => _adultCount + _childCount;
@@ -40,6 +41,37 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
 
   bool canSelectSeat(int currentSelectedSeats) {
     return currentSelectedSeats < totalPassengers;
+  }
+
+  Future<void> _fetchReservedSeats() async {
+    final url = Uri.parse('http://192.168.8.103:8000/api/check-seat');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'trip_id': widget.busDetails['tripId']}),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final List<dynamic> bookedSeats = responseData['booked_seats'];
+
+        setState(() {
+          for (var seatNumber in bookedSeats) {
+            reservedSeats[int.parse(seatNumber) - 1] = true;
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch reserved seats.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred: $e')),
+      );
+    }
   }
 
   void _scrollToForm() {
@@ -169,7 +201,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
-                        'Bus: ${widget.busDetails['bus_license_plate_no']} | ${widget.busDetails['start_location']} to ${widget.busDetails['end_location']}',
+                        'Bus: ${widget.busDetails['license']} | ${widget.busDetails['from']} to ${widget.busDetails['to']}',
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold),
                       ),
@@ -348,7 +380,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Trip ID: ${widget.busDetails['trip_id']}',
+                          'Trip ID: ${widget.busDetails['tripId']}',
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -356,7 +388,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'From: ${widget.busDetails['start_location']}',
+                          'From: ${widget.busDetails['from']}',
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -364,7 +396,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'To: ${widget.busDetails['end_location']}',
+                          'To: ${widget.busDetails['to']}',
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -380,7 +412,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Departure Time: ${widget.busDetails['departure_time']}',
+                          'Departure Time: ${widget.busDetails['departureTime']}',
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -388,7 +420,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Arrival Time: ${widget.busDetails['arrival_time']}',
+                          'Arrival Time: ${widget.busDetails['arrivalTime']}',
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -396,7 +428,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Bus License Plate: ${widget.busDetails['bus_license_plate_no']}',
+                          'Bus License Plate: ${widget.busDetails['license']}',
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -786,31 +818,31 @@ class PaymentCompletePage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Trip ID: ${busDetails['trip_id']}',
+                                'Trip ID: ${busDetails['tripId']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'From: ${busDetails['start_location']}',
+                                'From: ${busDetails['from']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'To: ${busDetails['end_location']}',
+                                'To: ${busDetails['to']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Departure Time: ${busDetails['departure_time']}',
+                                'Departure Time: ${busDetails['departureTime']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Arrival Time: ${busDetails['arrival_time']}',
+                                'Arrival Time: ${busDetails['arrivalTime']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
