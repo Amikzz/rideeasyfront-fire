@@ -50,6 +50,7 @@ dependencies:
   google_maps_flutter: ^2.0.6
   location: ^7.0.0
   intl: ^0.18.1
+  kommunicate_flutter: ^1.9.1
 
 
 dev_dependencies:
