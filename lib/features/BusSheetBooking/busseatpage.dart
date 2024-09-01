@@ -18,7 +18,7 @@ class BusSeatBookingPage extends StatefulWidget {
 }
 
 class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
-  final List<bool> reservedSeats = List.generate(54, (index) => false);
+  List<bool> reservedSeats = List.generate(54, (index) => false);
   final List<bool> selectedSeats = List.generate(54, (index) => false);
 
   int _adultCount = 0;
@@ -44,7 +44,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
   }
 
   Future<void> _fetchReservedSeats() async {
-    final url = Uri.parse('http://192.168.8.103:8000/api/check-seat');
+    final url = Uri.parse('http://192.168.8.103:8000/api/check-seats');
 
     try {
       final response = await http.post(
@@ -55,13 +55,34 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        final List<dynamic> bookedSeats = responseData['booked_seats'];
 
-        setState(() {
-          for (var seatNumber in bookedSeats) {
-            reservedSeats[int.parse(seatNumber) - 1] = true;
-          }
-        });
+        // Check if booked_seats is not null and is a list
+        if (responseData['booked_seats'] != null &&
+            responseData['booked_seats'] is List) {
+          final List<dynamic> bookedSeats = responseData['booked_seats'];
+
+          setState(() {
+            for (var seatNumber in bookedSeats) {
+              // Handle both int and String seat numbers
+              int seatIndex;
+              if (seatNumber is int) {
+                seatIndex = seatNumber - 1;
+              } else if (seatNumber is String) {
+                seatIndex = int.parse(seatNumber) - 1;
+              } else {
+                continue; // Skip invalid seat numbers
+              }
+
+              reservedSeats[seatIndex] = true;
+            }
+          });
+        } else {
+          // Handle case where booked_seats is null or not a valid list
+          setState(() {
+            // Ensure all seats are marked as not reserved
+            reservedSeats = List<bool>.filled(reservedSeats.length, false);
+          });
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to fetch reserved seats.')),
@@ -73,6 +94,7 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
       );
     }
   }
+
 
   void _scrollToForm() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
