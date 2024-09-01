@@ -217,7 +217,7 @@ class _HomePageState extends State<HomePage> {
         };
 
         // Send SOS request to backend
-        const String apiUrl = "http://10.3.0.173:8000/api/safety-button"; // Replace with your actual API endpoint
+        const String apiUrl = "http://192.168.8.103:8000/api/safety-button"; // Replace with your actual API endpoint
         final response = await http.post(
           Uri.parse(apiUrl),
           headers: {'Content-Type': 'application/json'},
