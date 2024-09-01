@@ -1,6 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api, prefer_const_constructors
 
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
@@ -93,9 +94,72 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
         SnackBar(content: Text('An error occurred: $e')),
       );
     }
+
   }
 
+  Future<void> bookSeats({
+    required BuildContext context, // Include BuildContext to show SnackBar
+    required String busLicensePlateNo,
+    required String passengerId,
+    required String tripId,
+    required String startLocation,
+    required String endLocation,
+    required String date,
+    required String departureTime,
+    required int noOfAdults,
+    required int noOfChildren,
+    required List<String> seatNumbers,
+  }) async {
+    const String url = 'http://192.168.8.103:8000/api/seat-booking'; // Replace with your backend URL
 
+    try {
+      // Prepare request body
+      Map<String, dynamic> requestBody = {
+        'bus_license_plate_no': busLicensePlateNo,
+        'passenger_id': passengerId,
+        'trip_id': tripId,
+        'start_location': startLocation,
+        'end_location': endLocation,
+        'date': date,
+        'departure_time': departureTime,
+        'no_of_adults': noOfAdults,
+        'no_of_children': noOfChildren,
+        'seat_numbers': jsonEncode(seatNumbers), // Convert seat numbers list to JSON
+      };
+
+      // Send the POST request
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      // Check the response status code
+      if (response.statusCode == 200) {
+        // Decode the response body
+        final responseBody = jsonDecode(response.body);
+        _showSnackBar(context, 'Seats successfully booked!', Colors.blueAccent);
+      } else if (response.statusCode == 422) {
+        _showSnackBar(context, 'Validation error: ${jsonDecode(response.body)['error']}', Colors.red);
+      } else {
+        _showSnackBar(context, 'Error: ${jsonDecode(response.body)['error']}', Colors.red);
+      }
+    } catch (e) {
+      _showSnackBar(context, 'An unexpected error occurred: $e', Colors.red);
+    }
+  }
+
+  // Helper function to show SnackBar
+    void _showSnackBar(BuildContext context, String message, Color color) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    
   void _scrollToForm() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollController.animateTo(
@@ -106,12 +170,56 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
     });
   }
 
-  void _processPayment() {
+
+  void _processPayment() async {
     setState(() {
       _paymentSuccessful = true;
     });
 
-    // Show the payment successful dialog
+    if (_paymentSuccessful) {
+      try {
+        // Get the current user from Firebase Authentication
+        User? currentUser = FirebaseAuth.instance.currentUser;
+
+        if (currentUser != null) {
+          // Use the Firebase user ID as the passenger ID
+          String passengerId = currentUser.uid;
+
+          // Proceed with booking the seats
+          await bookSeats(
+            context: context,
+            busLicensePlateNo: widget.busDetails['license'],
+            passengerId: passengerId, // Set the Firebase user ID
+            tripId: widget.busDetails['tripId'],
+            startLocation: widget.busDetails['from'],
+            endLocation: widget.busDetails['to'],
+            date: widget.busDetails['date'],
+            departureTime: widget.busDetails['departureTime'],
+            noOfAdults: _adultCount,
+            noOfChildren: _childCount,
+            seatNumbers: selectedSeats
+                .asMap() // Convert List<bool> to a map
+                .entries // Get the entries (index and value pairs)
+                .where((entry) => entry.value) // Filter to only selected seats
+                .map((entry) =>
+                (entry.key + 1).toString()) // Convert to seat numbers (1-based index)
+                .toList(), // Convert to List<String>
+          );
+        } else {
+          // If the user is not signed in, show an error
+          _showSnackBar(context, 'No user is currently signed in. Please log in first.', Colors.red);
+        }
+      } catch (e) {
+        // Handle any errors that occur while fetching the user ID or booking the seats
+        _showSnackBar(context, 'An error occurred: $e', Colors.red);
+      }
+    } else {
+      // Handle payment failure
+      _showSnackBar(context, 'Payment failed. Please try again.', Colors.red);
+  }
+
+
+  // Show the payment successful dialog
     showDialog(
       context: context,
       barrierDismissible: false, // Prevent closing by tapping outside
@@ -742,10 +850,10 @@ class Seat extends StatelessWidget {
   }
 }
 
-class PaymentCompletePage extends StatelessWidget {
+class PaymentCompletePage extends StatefulWidget {
   final Map<String, dynamic> busDetails;
   final double totalFare;
-  final List<int> reservedSeats; // Changed to List<int>
+  final List<int> reservedSeats; // List of reserved seat numbers
 
   const PaymentCompletePage({
     super.key,
@@ -753,6 +861,112 @@ class PaymentCompletePage extends StatelessWidget {
     required this.totalFare,
     required this.reservedSeats,
   });
+
+  @override
+  _PaymentCompletePageState createState() => _PaymentCompletePageState();
+}
+
+class _PaymentCompletePageState extends State<PaymentCompletePage> {
+  List<String>? ticketIds; // Variable to store fetched ticket IDs
+  bool isLoading = true; // Variable to track loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTicketIds(); // Fetch ticket IDs when the widget is initialized
+  }
+
+  Future<void> _fetchTicketIds() async {
+    // Get the current user ID from Firebase
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Handle the case where the user is not logged in
+      print('No user is logged in.');
+      return;
+    }
+
+    try {
+      // Fetch ticket IDs from the server
+      List<String>? ids = await fetchTicketIds(
+        tripId: widget.busDetails['tripId'],
+        passengerId: user.uid, // Use the Firebase user's UID
+        seatNumbers: widget.reservedSeats.map((seat) => seat.toString()).toList(),
+      );
+
+      // Check if the widget is still mounted before calling setState
+      if (mounted) {
+        setState(() {
+          ticketIds = ids; // Update state with fetched ticket IDs
+          isLoading = false; // Set loading to false after fetching
+        });
+      }
+    } catch (e) {
+      // Handle any unexpected errors
+      print('An unexpected error occurred: $e'); // Print the error for debugging
+
+      // Check if the widget is still mounted before calling setState
+      if (mounted) {
+        setState(() {
+          isLoading = false; // Set loading to false in case of error
+        });
+      }
+    }
+  }
+
+  Future<List<String>?> fetchTicketIds({
+    required String tripId,
+    required String passengerId,
+    required List<String> seatNumbers,
+  }) async {
+    const String url = 'http://192.168.8.103:8000/api/get-seat-ticketID';
+
+    try {
+      // Prepare the request body
+      Map<String, dynamic> requestBody = {
+        'trip_id': tripId,
+        'seat_numbers': jsonEncode(seatNumbers), // Correctly encode the seat numbers as JSON
+        'passenger_id': passengerId,
+      };
+
+      print('Sending request to $url with body: $requestBody');
+
+      // Send the POST request
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      print('Received response with status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      // Check if the response status code is OK (200)
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+
+        // Ensure the response body is a map and contains 'ticket_ids' key
+        if (responseBody is Map<String, dynamic> && responseBody.containsKey('ticket_ids')) {
+          List<dynamic> ticketIdsDynamic = responseBody['ticket_ids'];
+
+          // Ensure all elements in the list are strings
+          List<String> ticketIds = ticketIdsDynamic.map((id) => id.toString()).toList();
+          print('Fetched ticket IDs: $ticketIds');
+          return ticketIds;
+        } else {
+          print('Error: Unexpected response format. Expected a map with key "ticket_ids".');
+          return null;
+        }
+      } else {
+        String errorMessage = jsonDecode(response.body)['error'];
+        print('Error: $errorMessage');
+        return null;
+      }
+    } catch (e) {
+      print('An unexpected error occurred: $e');
+      return null;
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -772,10 +986,9 @@ class PaymentCompletePage extends StatelessWidget {
                     IconButton(
                       onPressed: () {
                         Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const HomePage())); // Navigate back
+                          context,
+                          MaterialPageRoute(builder: (context) => const HomePage()),
+                        ); // Navigate back
                       },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
@@ -799,7 +1012,9 @@ class PaymentCompletePage extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: isLoading // Show loading indicator while fetching ticket IDs
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Center(
@@ -814,8 +1029,9 @@ class PaymentCompletePage extends StatelessWidget {
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const Text(
-                  'Your payment was successful.',
+                  'Your payment was successful. Please take a screenshot of this and show it to the Conductor when you get into the bus.',
                   style: TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -840,37 +1056,55 @@ class PaymentCompletePage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Trip ID: ${busDetails['tripId']}',
+                                'Ticket IDs: ${ticketIds?.join(", ") ?? "Loading..."}', // Display fetched ticket IDs
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'From: ${busDetails['from']}',
+                                'Trip ID: ${widget.busDetails['tripId']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'To: ${busDetails['to']}',
+                                'Bus: ${widget.busDetails['license']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Departure Time: ${busDetails['departureTime']}',
+                                'Date: ${widget.busDetails['date']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Arrival Time: ${busDetails['arrivalTime']}',
+                                'From: ${widget.busDetails['from']}',
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Reserved Seats: ${reservedSeats.join(", ")}', // Now displaying the seat indices directly
+                                'To: ${widget.busDetails['to']}',
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Departure Time: ${widget.busDetails['departureTime']}',
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Arrival Time: ${widget.busDetails['arrivalTime']}',
+                                style: const TextStyle(
+                                    fontSize: 18, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Reserved Seats: ${widget.reservedSeats.join(", ")}', // Display reserved seat numbers
                                 style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
@@ -887,7 +1121,7 @@ class PaymentCompletePage extends StatelessWidget {
                           color: Colors.white,
                           child: Center(
                             child: Text(
-                              'Total Fare: LKR $totalFare',
+                              'Total Fare: LKR ${widget.totalFare}',
                               style: const TextStyle(fontSize: 18),
                             ),
                           ),
@@ -927,3 +1161,4 @@ class PaymentCompletePage extends StatelessWidget {
     );
   }
 }
+
