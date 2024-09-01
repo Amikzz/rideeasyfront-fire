@@ -603,7 +603,17 @@ class _BusSeatBookingPageState extends State<BusSeatBookingPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      _showPaymentForm = true;
+                      //show the payment information only if the number of total passengers and the number of selected seats are equal
+                      if (totalPassengers == selectedSeats.where((seat) => seat).length) {
+                        _showPaymentForm = true;
+                      }
+                      else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select all seats before proceeding to payment.'),
+                          ),
+                        );
+                      }
                     });
                     _scrollToForm();
                   },
